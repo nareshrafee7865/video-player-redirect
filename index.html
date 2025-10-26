@@ -10,9 +10,7 @@
     height: 100%;
     width: 100%;
     background-color: black;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    overflow: hidden;
   }
   iframe {
     width: 100%;
@@ -21,6 +19,9 @@
   }
   #error {
     position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     color: white;
     font-size: 1.5rem;
     text-align: center;
@@ -38,13 +39,23 @@ const player = document.getElementById("player");
 const errorDiv = document.getElementById("error");
 
 function loadIframe() {
-  fetch(txtFile + "?t=" + new Date().getTime()) // cache-busting
+  fetch(txtFile + "?t=" + new Date().getTime()) // prevent caching
     .then(res => res.text())
     .then(url => {
       url = url.trim();
       if(url) {
         player.src = url;
-        errorDiv.style.display = "none"; // hide error once loaded
+        errorDiv.style.display = "none";
+        // Attempt fullscreen after iframe loads
+        player.onload = () => {
+          if(player.requestFullscreen) {
+            player.requestFullscreen().catch(err => console.log("Fullscreen error:", err));
+          } else if(player.webkitRequestFullscreen) { // Safari
+            player.webkitRequestFullscreen();
+          } else if(player.msRequestFullscreen) { // IE/Edge
+            player.msRequestFullscreen();
+          }
+        };
       } else {
         errorDiv.innerText = "No link found in link.txt";
         errorDiv.style.display = "block";
@@ -57,10 +68,10 @@ function loadIframe() {
     });
 }
 
-// Load iframe initially
+// Initial load
 loadIframe();
 
-// Refresh every 30 seconds to get updated parent link
+// Refresh every 30 seconds to get updated link
 setInterval(loadIframe, 30000);
 </script>
 
