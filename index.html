@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Player Launcher</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+    }
+    a {
+      color: #0f0;
+      text-decoration: none;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="content">
+    Loading player...
+  </div>
+
+  <script>
+    // Path to your text file in the repo
+    const txtFile = "link.txt";
+
+    fetch(txtFile)
+      .then(response => response.text())
+      .then(url => {
+        url = url.trim();
+        if(url) {
+          // Replace content with a link
+          const container = document.getElementById("content");
+          container.innerHTML = `<a href="${url}" target="_blank">Open Video Player</a>`;
+
+          // Optional: automatically open in new tab
+          window.location.href = url;
+        } else {
+          document.getElementById("content").innerText = "No link found.";
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById("content").innerText = "Failed to load link.";
+      });
+  </script>
+</body>
+</html>
