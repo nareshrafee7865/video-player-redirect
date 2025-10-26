@@ -14,42 +14,58 @@
 
 <script>
 const iframe = document.getElementById("playerFrame");
+const STORAGE_KEY = "soundClicked";
 
-// Read the current parent link from your txt file
+// Function to fetch parent link from link.txt
 async function getParentLink() {
   try {
-    const res = await fetch("link.txt");
-    const text = await res.text();
-    return text.trim();
+    const res = await fetch("link.txt?" + Date.now()); // prevent cache
+    return (await res.text()).trim();
   } catch (e) {
     console.error("Error fetching link.txt:", e);
     return "";
   }
 }
 
-// Initialize player
-(async () => {
+// Load iframe and auto-click overlay if needed
+async function loadPlayer() {
   const link = await getParentLink();
+  if (!link) return;
+
   iframe.src = link;
 
-  // Check if user has clicked overlay before
-  const clicked = localStorage.getItem("soundClicked");
-  
-  if (!clicked) {
-    // Wait for first click inside iframe
-    window.addEventListener("message", (e) => {
-      if (e.data === "soundUnlocked") {
-        localStorage.setItem("soundClicked", "true");
-      }
-    });
-  } else {
-    // Auto-send message to iframe to trigger overlay click (bypassing)
-    iframe.onload = () => {
-      iframe.contentWindow.postMessage("autoClickOverlay", "*");
-    };
-  }
-})();
-</script>
+  // Once iframe is loaded
+  iframe.onload = () => {
+    const clicked = localStorage.getItem(STORAGE_KEY);
 
+    if (!clicked) {
+      // Listen for overlay click from inside iframe
+      window.addEventListener("message", function msgHandler(e) {
+        if (e.data === "soundUnlocked") {
+          localStorage.setItem(STORAGE_KEY, "true");
+          window.removeEventListener("message", msgHandler);
+        }
+      });
+    } else {
+      // Automatically trigger overlay click inside iframe
+      iframe.contentWindow.postMessage("autoClickOverlay", "*");
+    }
+  };
+}
+
+// Initial load
+loadPlayer();
+
+// Poll link.txt every 30s and reload iframe if changed
+let lastLink = "";
+setInterval(async () => {
+  const newLink = await getParentLink();
+  if (newLink && newLink !== lastLink) {
+    lastLink = newLink;
+    loadPlayer();
+  }
+}, 30000);
+
+</script>
 </body>
 </html>
