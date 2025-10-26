@@ -2,93 +2,121 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Video Player Embed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Player</title>
 <style>
   html, body {
     margin: 0;
     padding: 0;
+    background: black;
     width: 100%;
     height: 100%;
-    background-color: black;
     overflow: hidden;
-    cursor: pointer;
   }
-  #player {
-    position: absolute;
-    top: 0;
-    left: 0;
+  video, img {
+    position: fixed;
+    top: 0; left: 0;
     width: 100%;
     height: 100%;
-    border: none;
-  }
-  #clickOverlay {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-size: 2rem;
-    background: rgba(0,0,0,0.5);
-    z-index: 2;
-  }
-  #watermark {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    width: 80px; /* minimal size */
-    opacity: 0.6;
-    z-index: 3;
-    pointer-events: none;
+    object-fit: contain;
+    background: black;
   }
 </style>
 </head>
 <body>
 
-<div id="clickOverlay"></div>
-
-<iframe id="player" src=""></iframe>
-
-<img id="watermark" src="logo.png" alt="Logo">
+<video id="player" playsinline></video>
+<img id="image" style="display:none;" />
 
 <script>
-const txtFile = "link.txt"; // contains parent URL
-const player = document.getElementById("player");
-const overlay = document.getElementById("clickOverlay");
+const video = document.getElementById("player");
+const image = document.getElementById("image");
 
-// Load the link into iframe
-function loadIframe() {
-  fetch(txtFile + "?t=" + new Date().getTime())
-    .then(res => res.text())
-    .then(url => {
-      url = url.trim();
-      if(url) {
-        player.src = url;
-      } else {
-        console.error("No link found in link.txt");
-      }
-    })
-    .catch(err => console.error("Failed to fetch link.txt:", err));
+let playlist = [];
+let current = 0;
+let soundUnlocked = false;
+
+// One-time overlay to unlock sound
+let overlayShown = false;
+function createOverlay() {
+  if (overlayShown) return;
+  overlayShown = true;
+
+  const overlay = document.createElement("div");
+  overlay.style.position = "fixed";
+  overlay.style.top = 0;
+  overlay.style.left = 0;
+  overlay.style.width = "100%";
+  overlay.style.height = "100%";
+  overlay.style.background = "rgba(0,0,0,0.7)";
+  overlay.style.color = "white";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.fontSize = "26px";
+  overlay.style.cursor = "pointer";
+  overlay.style.zIndex = 1000;
+  overlay.innerText = "Tap anywhere to enable sound & fullscreen";
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", async () => {
+    soundUnlocked = true;
+    video.muted = false;
+    overlay.remove();
+    try { 
+      await video.play(); 
+      if (video.requestFullscreen) video.requestFullscreen();
+    } catch(e){console.warn("Autoplay failed:", e);}
+  });
 }
 
-// Handle click to hide overlay and request fullscreen
-document.body.addEventListener("click", () => {
-  overlay.style.display = "none"; // hide the click overlay
-
-  // Try to request fullscreen
-  if(player.requestFullscreen) {
-    player.requestFullscreen().catch(err => console.log("Fullscreen error:", err));
-  } else if(player.webkitRequestFullscreen) {
-    player.webkitRequestFullscreen();
-  } else if(player.msRequestFullscreen) {
-    player.msRequestFullscreen();
+// Fetch playlist from your server
+async function fetchPlaylist() {
+  try {
+    const res = await fetch("/playlist");
+    playlist = await res.json();
+  } catch(err){
+    console.error("Error fetching playlist:", err);
   }
-});
+}
 
-// Initial load
-loadIframe();
-setInterval(loadIframe, 30000); // refresh every 30 sec
+// Play next media
+function playNext() {
+  if (!playlist.length) return;
+  const item = playlist[current];
+
+  if (item.type === "video") {
+    image.style.display = "none";
+    video.style.display = "block";
+    video.src = `/media/${item.file}`;
+    video.muted = !soundUnlocked;
+    video.load();
+    video.play().catch(err=>console.warn("Autoplay failed:",err));
+    video.onended = () => {
+      current = (current + 1) % playlist.length;
+      playNext();
+    };
+  } else if(item.type === "image") {
+    video.pause();
+    video.style.display = "none";
+    image.src = `/media/${item.file}`;
+    image.style.display = "block";
+    setTimeout(() => {
+      current = (current + 1) % playlist.length;
+      playNext();
+    }, 5000);
+  }
+}
+
+// Auto-refresh playlist every 30s
+setInterval(fetchPlaylist, 30000);
+
+// Initialize
+(async () => {
+  createOverlay();
+  await fetchPlaylist();
+  if (playlist.length) playNext();
+})();
 </script>
 
 </body>
