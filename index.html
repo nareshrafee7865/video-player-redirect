@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Video Player</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: sans-serif;
+  }
+  a {
+    font-size: 24px;
+    text-decoration: none;
+    color: blue;
+    padding: 20px;
+    border: 2px solid blue;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+<a id="videoLink" href="https://forty-projects-attraction-friday.trycloudflare.com" target="_blank">Open Video Player</a>
+<script>
+  // Automatically click the link after 1 second
+  setTimeout(() => document.getElementById('videoLink').click(), 1000);
+</script>
+</body>
+</html>
