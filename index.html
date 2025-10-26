@@ -2,120 +2,52 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video Player</title>
+<title>Video Player Wrapper</title>
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: black;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-  video, img {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: black;
-  }
+  body, html { margin:0; padding:0; height:100%; width:100%; overflow:hidden; }
+  iframe { width:100%; height:100%; border:none; }
 </style>
 </head>
 <body>
 
-<video id="player" playsinline></video>
-<img id="image" style="display:none;" />
+<iframe id="playerFrame" src="" allow="autoplay; fullscreen"></iframe>
 
 <script>
-const video = document.getElementById("player");
-const image = document.getElementById("image");
+const iframe = document.getElementById("playerFrame");
 
-let playlist = [];
-let current = 0;
-let soundUnlocked = false;
-
-// One-time overlay to unlock sound
-let overlayShown = false;
-function createOverlay() {
-  if (overlayShown) return;
-  overlayShown = true;
-
-  const overlay = document.createElement("div");
-  overlay.style.position = "fixed";
-  overlay.style.top = 0;
-  overlay.style.left = 0;
-  overlay.style.width = "100%";
-  overlay.style.height = "100%";
-  overlay.style.background = "rgba(0,0,0,0.7)";
-  overlay.style.color = "white";
-  overlay.style.display = "flex";
-  overlay.style.alignItems = "center";
-  overlay.style.justifyContent = "center";
-  overlay.style.fontSize = "26px";
-  overlay.style.cursor = "pointer";
-  overlay.style.zIndex = 1000;
-  overlay.innerText = "Tap anywhere to enable sound & fullscreen";
-  document.body.appendChild(overlay);
-
-  overlay.addEventListener("click", async () => {
-    soundUnlocked = true;
-    video.muted = false;
-    overlay.remove();
-    try { 
-      await video.play(); 
-      if (video.requestFullscreen) video.requestFullscreen();
-    } catch(e){console.warn("Autoplay failed:", e);}
-  });
-}
-
-// Fetch playlist from your server
-async function fetchPlaylist() {
+// Read the current parent link from your txt file
+async function getParentLink() {
   try {
-    const res = await fetch("/playlist");
-    playlist = await res.json();
-  } catch(err){
-    console.error("Error fetching playlist:", err);
+    const res = await fetch("link.txt");
+    const text = await res.text();
+    return text.trim();
+  } catch (e) {
+    console.error("Error fetching link.txt:", e);
+    return "";
   }
 }
 
-// Play next media
-function playNext() {
-  if (!playlist.length) return;
-  const item = playlist[current];
-
-  if (item.type === "video") {
-    image.style.display = "none";
-    video.style.display = "block";
-    video.src = `/media/${item.file}`;
-    video.muted = !soundUnlocked;
-    video.load();
-    video.play().catch(err=>console.warn("Autoplay failed:",err));
-    video.onended = () => {
-      current = (current + 1) % playlist.length;
-      playNext();
-    };
-  } else if(item.type === "image") {
-    video.pause();
-    video.style.display = "none";
-    image.src = `/media/${item.file}`;
-    image.style.display = "block";
-    setTimeout(() => {
-      current = (current + 1) % playlist.length;
-      playNext();
-    }, 5000);
-  }
-}
-
-// Auto-refresh playlist every 30s
-setInterval(fetchPlaylist, 30000);
-
-// Initialize
+// Initialize player
 (async () => {
-  createOverlay();
-  await fetchPlaylist();
-  if (playlist.length) playNext();
+  const link = await getParentLink();
+  iframe.src = link;
+
+  // Check if user has clicked overlay before
+  const clicked = localStorage.getItem("soundClicked");
+  
+  if (!clicked) {
+    // Wait for first click inside iframe
+    window.addEventListener("message", (e) => {
+      if (e.data === "soundUnlocked") {
+        localStorage.setItem("soundClicked", "true");
+      }
+    });
+  } else {
+    // Auto-send message to iframe to trigger overlay click (bypassing)
+    iframe.onload = () => {
+      iframe.contentWindow.postMessage("autoClickOverlay", "*");
+    };
+  }
 })();
 </script>
 
