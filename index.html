@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Video Player Wrapper</title>
 <style>
-  body, html { margin:0; padding:0; height:100%; width:100%; overflow:hidden; }
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   iframe { width:100%; height:100%; border:none; }
 </style>
 </head>
@@ -15,8 +15,9 @@
 <script>
 const iframe = document.getElementById("playerFrame");
 const STORAGE_KEY = "soundClicked";
+let lastLink = "";
 
-// Function to fetch parent link from link.txt
+// Function to fetch link.txt from same folder
 async function getParentLink() {
   try {
     const res = await fetch("link.txt?" + Date.now()); // prevent cache
@@ -27,19 +28,22 @@ async function getParentLink() {
   }
 }
 
-// Load iframe and auto-click overlay if needed
+// Load iframe and handle overlay logic
 async function loadPlayer() {
   const link = await getParentLink();
   if (!link) return;
 
+  // Only reload if link changed
+  if (link === lastLink) return;
+  lastLink = link;
+
   iframe.src = link;
 
-  // Once iframe is loaded
   iframe.onload = () => {
     const clicked = localStorage.getItem(STORAGE_KEY);
 
     if (!clicked) {
-      // Listen for overlay click from inside iframe
+      // Listen for overlay click from iframe
       window.addEventListener("message", function msgHandler(e) {
         if (e.data === "soundUnlocked") {
           localStorage.setItem(STORAGE_KEY, "true");
@@ -47,7 +51,7 @@ async function loadPlayer() {
         }
       });
     } else {
-      // Automatically trigger overlay click inside iframe
+      // Auto click overlay in iframe
       iframe.contentWindow.postMessage("autoClickOverlay", "*");
     }
   };
@@ -56,16 +60,9 @@ async function loadPlayer() {
 // Initial load
 loadPlayer();
 
-// Poll link.txt every 30s and reload iframe if changed
-let lastLink = "";
-setInterval(async () => {
-  const newLink = await getParentLink();
-  if (newLink && newLink !== lastLink) {
-    lastLink = newLink;
-    loadPlayer();
-  }
-}, 30000);
-
+// Auto-refresh every 30s to check for new link
+setInterval(loadPlayer, 30000);
 </script>
+
 </body>
 </html>
